@@ -22,24 +22,22 @@ type jsonResponse struct {
 }
 
 func InitUsersHandlers(dbPool *pgxpool.Pool) {
-	http.Handle("/v1/users/me", middlewares.CurrentUserMiddleware(dbPool, meHandler))
+	http.Handle("/v1/me", middlewares.NewEnsureAuth(someHandler, dbPool))
 }
 
-func meHandler(dbPool *pgxpool.Pool, currentUser middlewares.CurrentUser) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		jsonResponse := jsonResponse{
-			Status: "ok",
-			Data:   data{Me: me{Email: currentUser.Email}},
-		}
-
-		jsonData, err := json.Marshal(jsonResponse)
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(jsonData)
+func someHandler(w http.ResponseWriter, r *http.Request, dbPool *pgxpool.Pool, currentUser *middlewares.CurrentUser) {
+	jsonResponse := jsonResponse{
+		Status: "ok",
+		Data:   data{Me: me{Email: currentUser.Email}},
 	}
+
+	jsonData, err := json.Marshal(jsonResponse)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonData)
 }

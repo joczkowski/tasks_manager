@@ -2,9 +2,7 @@ package middlewares
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -13,17 +11,21 @@ type CurrentUser struct {
 	Email string
 }
 
-type Handler func(dbPool *pgxpool.Pool, currentUser CurrentUser) http.HandlerFunc
+type AutheticatedHandler func(http.ResponseWriter, *http.Request, *pgxpool.Pool, *CurrentUser)
 
-func CurrentUserMiddleware(dbPool *pgxpool.Pool, handler Handler) http.HandlerFunc {
-	var currentUser CurrentUser
+type EnsureAuth struct {
+	handler AutheticatedHandler
+	dbPool  *pgxpool.Pool
+}
 
-	err := dbPool.QueryRow(context.Background(), "select 'user@example.com' as email").Scan(&currentUser.Email)
+func (ea EnsureAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	user := CurrentUser{}
 
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
-		os.Exit(1)
-	}
+	ea.dbPool.QueryRow(context.Background(), "SELECT 'user@example.com' as email", r.Context().Value("user_id")).Scan(&user.Email)
 
-	return handler(dbPool, currentUser)
+	ea.handler(w, r, ea.dbPool, &user)
+}
+
+func NewEnsureAuth(handlerToWrap AutheticatedHandler, dbPool *pgxpool.Pool) *EnsureAuth {
+	return &EnsureAuth{handlerToWrap, dbPool}
 }
