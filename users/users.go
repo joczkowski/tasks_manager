@@ -2,6 +2,7 @@ package users
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -10,6 +11,8 @@ import (
 
 type me struct {
 	Email string `json:"email"`
+	Name  string `json:"name"`
+	Id    int    `json:"id"`
 }
 
 type data struct {
@@ -22,13 +25,14 @@ type jsonResponse struct {
 }
 
 func InitUsersHandlers(dbPool *pgxpool.Pool) {
-	http.Handle("/v1/me", middlewares.NewEnsureAuth(someHandler, dbPool))
+	http.Handle("/v1/me", middlewares.NewEnsureAuth(meHandler, dbPool))
 }
 
-func someHandler(w http.ResponseWriter, r *http.Request, dbPool *pgxpool.Pool, currentUser *middlewares.CurrentUser) {
+func meHandler(w http.ResponseWriter, r *http.Request, dbPool *pgxpool.Pool, currentUser *middlewares.CurrentUser) {
+	fmt.Println(currentUser)
 	jsonResponse := jsonResponse{
 		Status: "ok",
-		Data:   data{Me: me{Email: currentUser.Email}},
+		Data:   data{Me: me{Email: currentUser.Email, Name: currentUser.Name, Id: currentUser.Id}},
 	}
 
 	jsonData, err := json.Marshal(jsonResponse)

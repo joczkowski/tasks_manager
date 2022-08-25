@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/joho/godotenv"
+	"joczkowski.com/room_keeper/auth"
 	"joczkowski.com/room_keeper/users"
 )
 
@@ -36,6 +37,8 @@ func main() {
 		fmt.Println("Running server on port 8080...")
 
 		users.InitUsersHandlers(dbPool)
+
+		auth.InitAuthHandlers(dbPool)
 
 		logPath := "development.log"
 

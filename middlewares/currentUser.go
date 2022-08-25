@@ -4,11 +4,21 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
+type Claims struct {
+	Email string `json:"email"`
+	jwt.StandardClaims
+}
+
+var jwtKey = []byte("my_secret_key")
+
 type CurrentUser struct {
+	Id    int
 	Email string
+	Name  string
 }
 
 type AutheticatedHandler func(http.ResponseWriter, *http.Request, *pgxpool.Pool, *CurrentUser)
@@ -19,11 +29,44 @@ type EnsureAuth struct {
 }
 
 func (ea EnsureAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	user := CurrentUser{}
+	c, err := r.Cookie("token")
 
-	ea.dbPool.QueryRow(context.Background(), "SELECT 'user@example.com' as email", r.Context().Value("user_id")).Scan(&user.Email)
+	if err != nil {
+		if err == http.ErrNoCookie {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
-	ea.handler(w, r, ea.dbPool, &user)
+	tknStr := c.Value
+
+	claims := &Claims{}
+
+	tkn, err := jwt.ParseWithClaims(tknStr, claims, func(token *jwt.Token) (interface{}, error) {
+		return jwtKey, nil
+	})
+
+	if err != nil {
+		if err == jwt.ErrSignatureInvalid {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if !tkn.Valid {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	var currentUser CurrentUser
+
+	ea.dbPool.QueryRow(context.Background(), "SELECT users.id, users.email, users.name  FROM (SELECT 1 as id,  'user@example.com' as email, 'Jakub Oczkowski' as name) as users WHERE users.email = $1", 1).Scan(&currentUser.Id, &currentUser.Email, &currentUser.Name)
+
+	ea.handler(w, r, ea.dbPool, &currentUser)
 }
 
 func NewEnsureAuth(handlerToWrap AutheticatedHandler, dbPool *pgxpool.Pool) *EnsureAuth {
