@@ -11,6 +11,8 @@ import (
 	"github.com/joho/godotenv"
 	"joczkowski.com/room_keeper/auth"
 	"joczkowski.com/room_keeper/users"
+
+	pgm "github.com/joczkowki/pgmproject"
 )
 
 func main() {
@@ -20,8 +22,9 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	fmt.Println(os.Getenv("DB_URL"))
-	dbPool, err := pgxpool.Connect(context.Background(), os.Getenv("DB_URL"))
+	dbUrl := os.Getenv("DB_URL")
+
+	dbPool, err := pgxpool.Connect(context.Background(), dbUrl)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
 		os.Exit(1)
@@ -31,8 +34,8 @@ func main() {
 
 	firstArg := os.Args[1]
 
-	if firstArg == "automigrate" {
-		fmt.Println("Automigrate")
+	if firstArg == "migrate" {
+		pgm.Init()
 	} else if firstArg == "server" {
 		fmt.Println("Running server on port 8080...")
 
@@ -47,10 +50,6 @@ func main() {
 		httpPort := 8080
 
 		http.ListenAndServe(fmt.Sprintf(":%d", httpPort), nil)
-		// err := http.ListenAndServe(fmt.Sprintf(":%d", httpPort), logRequest(http.DefaultServeMux))
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
 	} else {
 		fmt.Println("Invalid command")
 	}
