@@ -5,8 +5,10 @@ go 1.18
 require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/jackc/pgx v3.6.2+incompatible
-	github.com/jackc/pgx/v4 v4.17.0
+	github.com/jackc/pgx/v4 v4.17.2
 	github.com/joho/godotenv v1.4.0
+	gorm.io/driver/postgres v1.4.5
+	gorm.io/gorm v1.24.2
 )
 
 require (
@@ -17,7 +19,7 @@ require (
 	github.com/jackc/pgproto3/v2 v2.3.1 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
 	github.com/jackc/pgtype v1.12.0 // indirect
-	github.com/jackc/puddle v1.2.1 // indirect
+	github.com/jackc/puddle v1.3.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/pkg/errors v0.8.1 // indirect

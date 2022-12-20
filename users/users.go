@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/jackc/pgx/v4/pgxpool"
+	"gorm.io/gorm"
 	"joczkowski.com/room_keeper/middlewares"
 )
 
@@ -24,11 +24,11 @@ type jsonResponse struct {
 	Data   data   `json:"data"`
 }
 
-func InitUsersHandlers(dbPool *pgxpool.Pool) {
-	http.Handle("/v1/me", middlewares.NewEnsureAuth(meHandler, dbPool))
+func InitUsersHandlers(db *gorm.DB) {
+	http.Handle("api/v1/users/me", middlewares.NewEnsureAuth(meHandler, db))
 }
 
-func meHandler(w http.ResponseWriter, r *http.Request, dbPool *pgxpool.Pool, currentUser *middlewares.CurrentUser) {
+func meHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, currentUser *middlewares.CurrentUser) {
 	fmt.Println(currentUser)
 	jsonResponse := jsonResponse{
 		Status: "ok",

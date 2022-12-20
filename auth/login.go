@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"gorm.io/gorm"
 )
 
 var users = map[string]string{
@@ -15,21 +15,12 @@ var users = map[string]string{
 
 var jwtKey = []byte("my_secret_key")
 
-type credentails struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-type Claims struct {
+type claims struct {
 	Email string `json:"email"`
 	jwt.StandardClaims
 }
 
-func InitAuthHandlers(dbPool *pgxpool.Pool) {
-	http.HandleFunc("/v1/login", loginHandler(dbPool))
-}
-
-func loginHandler(dbPoll *pgxpool.Pool) http.HandlerFunc {
+func loginHandler(db *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var credentails credentails
 
@@ -49,7 +40,7 @@ func loginHandler(dbPoll *pgxpool.Pool) http.HandlerFunc {
 			}
 
 			expirationTime := time.Now().Add(5 * time.Minute)
-			claims := &Claims{
+			claims := &claims{
 				Email: credentails.Email,
 				StandardClaims: jwt.StandardClaims{
 					ExpiresAt: expirationTime.Unix(),

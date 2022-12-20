@@ -1,11 +1,10 @@
 package middlewares
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/golang-jwt/jwt"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"gorm.io/gorm"
 )
 
 type Claims struct {
@@ -21,11 +20,11 @@ type CurrentUser struct {
 	Name  string
 }
 
-type AutheticatedHandler func(http.ResponseWriter, *http.Request, *pgxpool.Pool, *CurrentUser)
+type AutheticatedHandler func(http.ResponseWriter, *http.Request, *gorm.DB, *CurrentUser)
 
 type EnsureAuth struct {
 	handler AutheticatedHandler
-	dbPool  *pgxpool.Pool
+	db      *gorm.DB
 }
 
 func (ea EnsureAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -64,11 +63,11 @@ func (ea EnsureAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var currentUser CurrentUser
 
-	ea.dbPool.QueryRow(context.Background(), "SELECT users.id, users.email, users.name  FROM (SELECT 1 as id,  'user@example.com' as email, 'Jakub Oczkowski' as name) as users WHERE users.email = $1", 1).Scan(&currentUser.Id, &currentUser.Email, &currentUser.Name)
+	ea.db.Where("email = ?", claims.Email).First(&currentUser)
 
-	ea.handler(w, r, ea.dbPool, &currentUser)
+	ea.handler(w, r, ea.db, &currentUser)
 }
 
-func NewEnsureAuth(handlerToWrap AutheticatedHandler, dbPool *pgxpool.Pool) *EnsureAuth {
-	return &EnsureAuth{handlerToWrap, dbPool}
+func NewEnsureAuth(handlerToWrap AutheticatedHandler, db *gorm.DB) *EnsureAuth {
+	return &EnsureAuth{handlerToWrap, db}
 }
