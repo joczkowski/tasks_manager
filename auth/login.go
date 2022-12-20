@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -18,6 +19,11 @@ var jwtKey = []byte("my_secret_key")
 type claims struct {
 	Email string `json:"email"`
 	jwt.StandardClaims
+}
+
+func CheckPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }
 
 func loginHandler(db *gorm.DB) http.HandlerFunc {
