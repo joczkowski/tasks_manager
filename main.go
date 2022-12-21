@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -74,6 +75,23 @@ func main() {
 
 		users.InitUsersHandlers(db)
 		auth.InitAuthHandlers(db)
+
+		if os.Getenv("PROJECT_ENV") == "development" {
+			http.HandleFunc("/admin/users", func(w http.ResponseWriter, r *http.Request) {
+				type userResult struct {
+					ID    int
+					Email string
+				}
+
+				var users []userResult
+				db.Table("users").Find(&users)
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+
+				json.NewEncoder(w).Encode(users)
+			})
+		}
 
 		http.ListenAndServe(fmt.Sprintf(":%d", 8000), logRequest(http.DefaultServeMux))
 	} else {
