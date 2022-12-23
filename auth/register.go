@@ -2,10 +2,12 @@ package auth
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+	"joczkowski.com/room_keeper/err_helpers"
 )
 
 type User struct {
@@ -20,6 +22,16 @@ func HashPassword(password string) (string, error) {
 	return string(bytes), err
 }
 
+func checkIfUserExist(credentials *credentails, db *gorm.DB) error {
+	result := db.First(&User{}, "email = ?", credentials.Email)
+
+	if result.RowsAffected > 0 {
+		return errors.New("User already exist")
+	}
+
+	return nil
+}
+
 func registerHandler(db *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -27,43 +39,24 @@ func registerHandler(db *gorm.DB) http.HandlerFunc {
 			var credentails credentails
 
 			err := json.NewDecoder(r.Body).Decode(&credentails)
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
+			err_helpers.HandleWebErr(w, err, http.StatusBadRequest)
 
-			if credentails.Email == "" || credentails.Password == "" {
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]string{"error": "Empty params"})
-				return
-			}
+			err = validateParams(&credentails)
+			err_helpers.HandleWebErr(w, err, http.StatusBadRequest)
 
-			result := db.First(&User{}, "email = ?", credentails.Email)
-
-			if result.RowsAffected > 0 {
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]string{"error": "Invalid params"})
-				return
-			}
+			err = checkIfUserExist(&credentails, db)
+			err_helpers.HandleWebErr(w, err, http.StatusBadRequest)
 
 			hashedPassword, err := HashPassword(credentails.Password)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
+			err_helpers.HandleWebErr(w, err, http.StatusBadRequest)
 
-			result = db.Create(&User{
+			result := db.Create(&User{
 				Email:          credentails.Email,
 				HashedPassword: hashedPassword,
 			})
-
-			if result.Error != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
+			err_helpers.HandleWebErr(w, result.Error, http.StatusBadRequest)
 
 			w.WriteHeader(http.StatusCreated)
-			return
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}

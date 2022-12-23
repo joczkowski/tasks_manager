@@ -9,6 +9,7 @@ import (
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+	"joczkowski.com/room_keeper/err_helpers"
 )
 
 var users = map[string]string{
@@ -27,14 +28,7 @@ func checkPasswordHash(password, hash string) bool {
 	return err == nil
 }
 
-func validateParams(credentials credentails) error {
-	if credentials.Email == "" || credentials.Password == "" {
-		return errors.New("Invalid request body")
-	}
-	return nil
-}
-
-func findUserByEamilAndPassword(credentials credentails, db *gorm.DB) (User, error) {
+func findUserByEamilAndPassword(credentials *credentails, db *gorm.DB) (User, error) {
 	var user User
 	result := db.First(&user, "email = ?", credentials.Email)
 
@@ -72,21 +66,18 @@ func loginHandler(db *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
-			var credentials credentails
-			_ = json.NewDecoder(r.Body).Decode(&credentials)
-			_ = validateParams(credentials)
+			var credentails credentails
 
-			user, err := findUserByEamilAndPassword(credentials, db)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
+			_ = json.NewDecoder(r.Body).Decode(&credentails)
+
+			err := validateParams(&credentails)
+			err_helpers.HandleWebErr(w, err, http.StatusBadRequest)
+
+			user, err := findUserByEamilAndPassword(&credentails, db)
+			err_helpers.HandleWebErr(w, err, http.StatusBadRequest)
 
 			expireTime, tokenString, err := createToken(&user)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+			err_helpers.HandleWebErr(w, err, http.StatusBadRequest)
 
 			http.SetCookie(w, &http.Cookie{
 				Name:    "token",
