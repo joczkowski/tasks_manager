@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -21,91 +22,77 @@ type claims struct {
 	jwt.StandardClaims
 }
 
-func CheckPasswordHash(password, hash string) bool {
+func checkPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
 
-type postLoginAction struct {
-	w http.ResponseWriter
-	r *http.Request
-	db *gorm.DB
-	deseralizedParams credentails
-	tokenString string
-	expirationTime time.Time
-}
-
-func (self *postLoginAction) handle()  {
-	if !self.deserializeParams() { return }
-	if !self.validateParams() { return }
-	if !self.auth() { return }
-
-	http.SetCookie(self.w, &http.Cookie{
-		Name:    "token",
-		Value:   self.tokenString,
-		Expires: self.expirationTime,
-	})
-}
-
-func (self *postLoginAction) deserializeParams() bool {
-	err := json.NewDecoder(self.r.Body).Decode(&self.deseralizedParams)
-	if err != nil {
-		self.w.WriteHeader(http.StatusBadRequest)
-		return false
+func validateParams(credentials credentails) error {
+	if credentials.Email == "" || credentials.Password == "" {
+		return errors.New("Invalid request body")
 	}
-
-	return true
+	return nil
 }
 
-func (self *postLoginAction) validateParams() bool {
-	if self.deseralizedParams.Email == "" || self.deseralizedParams.Password == "" {
-		self.w.WriteHeader(http.StatusBadRequest)
-		return false
-	}
-
-	return true
-}
-
-func (self *postLoginAction) auth() bool {
+func findUserByEamilAndPassword(credentials credentails, db *gorm.DB) (User, error) {
 	var user User
-
-	result := self.db.First(user, "email = ?", self.deseralizedParams.Email)
+	result := db.First(&user, "email = ?", credentials.Email)
 
 	if result.RowsAffected == 0 {
-		self.w.WriteHeader(http.StatusUnauthorized)
-		return false
-	}
-	
-	if !CheckPasswordHash(self.deseralizedParams.Password, user.HashedPassword) {
-		self.w.WriteHeader(http.StatusUnauthorized)
-		return false
+		return User{}, errors.New("User not found")
 	}
 
-	self.expirationTime = time.Now().Add(5 * time.Minute)
+	if !checkPasswordHash(credentials.Password, user.HashedPassword) {
+		return User{}, errors.New("Invalid password")
+	}
+
+	return user, nil
+}
+
+func createToken(user *User) (time.Time, string, error) {
+	expirationTime := time.Now().Add(5 * time.Minute)
+
 	claims := &claims{
-		Email: self.deseralizedParams.Email,
+		Email: user.Email,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: self.expirationTime.Unix(),
+			ExpiresAt: expirationTime.Unix(),
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	var err error
-	self.tokenString, err = token.SignedString(jwtKey)
+	tokenString, err := token.SignedString(jwtKey)
 	if err != nil {
-		self.w.WriteHeader(http.StatusInternalServerError)
-		return false
+		return expirationTime, "", err
 	}
 
-	return true
+	return expirationTime, tokenString, nil
 }
 
 func loginHandler(db *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
-			action := postLoginAction{w: w, r: r, db: db}
-			action.handle()
+			var credentials credentails
+			_ = json.NewDecoder(r.Body).Decode(&credentials)
+			_ = validateParams(credentials)
+
+			user, err := findUserByEamilAndPassword(credentials, db)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			expireTime, tokenString, err := createToken(&user)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			http.SetCookie(w, &http.Cookie{
+				Name:    "token",
+				Value:   tokenString,
+				Expires: expireTime,
+			})
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
