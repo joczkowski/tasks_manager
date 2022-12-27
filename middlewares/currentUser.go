@@ -68,7 +68,11 @@ func (ea EnsureAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var currentUser CurrentUser
 
-	ea.db.Where("email = ?", claims.Email).First(&currentUser)
+	result := ea.db.Table("users").Where("email = ?", claims.Email).First(&currentUser)
+	if result.Error != nil {
+		err_helpers.HandleWebErr(w, result.Error, http.StatusUnauthorized)
+		return
+	}
 
 	ea.handler(w, r, ea.db, &currentUser)
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"joczkowski.com/room_keeper/auth"
+	"joczkowski.com/room_keeper/tasks"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -69,10 +70,12 @@ func main() {
 
 	if firstArg == "migrate" {
 		db.AutoMigrate(&User{})
+		db.AutoMigrate(&Task{})
 	} else if firstArg == "server" {
 		fmt.Println("Running server on port 8000...")
 
 		auth.InitAuthHandlers(db)
+		tasks.InitTaskHandlers(db)
 
 		if os.Getenv("PROJECT_ENV") == "development" {
 			http.HandleFunc("/admin/users", func(w http.ResponseWriter, r *http.Request) {
