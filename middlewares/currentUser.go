@@ -2,9 +2,11 @@ package middlewares
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/golang-jwt/jwt"
 	"gorm.io/gorm"
+	"joczkowski.com/room_keeper/err_helpers"
 )
 
 type Claims struct {
@@ -43,6 +45,8 @@ func (ea EnsureAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	claims := &Claims{}
 
+	jwtKey := []byte(os.Getenv("JWT_SECRET"))
+
 	tkn, err := jwt.ParseWithClaims(tknStr, claims, func(token *jwt.Token) (interface{}, error) {
 		return jwtKey, nil
 	})
@@ -50,6 +54,7 @@ func (ea EnsureAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err == jwt.ErrSignatureInvalid {
 			w.WriteHeader(http.StatusUnauthorized)
+			err_helpers.HandleWebErr(w, err, http.StatusUnauthorized)
 			return
 		}
 		w.WriteHeader(http.StatusBadRequest)

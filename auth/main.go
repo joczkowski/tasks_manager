@@ -3,6 +3,7 @@ package auth
 import (
 	"errors"
 	"net/http"
+	"net/mail"
 
 	"gorm.io/gorm"
 )
@@ -21,5 +22,11 @@ func validateParams(credentials *credentails) error {
 	if credentials.Email == "" || credentials.Password == "" {
 		return errors.New("Invalid request body")
 	}
+
+	_, err := mail.ParseAddress(credentials.Email)
+	if err != nil {
+		return errors.New("Invalid email address format")
+	}
+
 	return nil
 }

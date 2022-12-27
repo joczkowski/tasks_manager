@@ -9,7 +9,6 @@ import (
 
 	"github.com/joho/godotenv"
 	"joczkowski.com/room_keeper/auth"
-	"joczkowski.com/room_keeper/users"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -73,7 +72,6 @@ func main() {
 	} else if firstArg == "server" {
 		fmt.Println("Running server on port 8000...")
 
-		users.InitUsersHandlers(db)
 		auth.InitAuthHandlers(db)
 
 		if os.Getenv("PROJECT_ENV") == "development" {

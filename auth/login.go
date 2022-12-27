@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -15,8 +16,6 @@ import (
 var users = map[string]string{
 	"user@example.com": "password",
 }
-
-var jwtKey = []byte("my_secret_key")
 
 type claims struct {
 	Email string `json:"email"`
@@ -52,6 +51,8 @@ func createToken(user *User) (time.Time, string, error) {
 			ExpiresAt: expirationTime.Unix(),
 		},
 	}
+
+	jwtKey := []byte(os.Getenv("JWT_SECRET"))
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString(jwtKey)
