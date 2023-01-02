@@ -17,4 +17,5 @@ type Task struct {
 	UserId      int
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	Status      string
 }

@@ -11,13 +11,20 @@ import (
 	"joczkowski.com/room_keeper/middlewares"
 )
 
+const (
+	ToDoTaskStatus       = "to_do"
+	InProgressTaskStatus = "in_progress"
+	DoneTaskStatus       = "done"
+)
+
 func InitTaskHandlers(db *gorm.DB) {
-	http.Handle("/api/v1/tasks", middlewares.NewEnsureAuth(allTask, db))
-	http.Handle("/api/v1/task", middlewares.NewEnsureAuth(createTask, db))
-	http.Handle("/api/v1/task/", middlewares.NewEnsureAuth(idBaseActions, db))
+	http.Handle("/api/v1/tasks", middlewares.NewEnsureAuth(allTaskHandler, db))
+	http.Handle("/api/v1/task", middlewares.NewEnsureAuth(createTaskHandler, db))
+	http.Handle("/api/v1/task/", middlewares.NewEnsureAuth(idBaseTaskHandler, db))
+	http.Handle("/api/v1/task/move/", middlewares.NewEnsureAuth(moveTaskHandler, db))
 }
 
-func allTask(w http.ResponseWriter, r *http.Request, db *gorm.DB, currentUser *middlewares.CurrentUser) {
+func allTaskHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, currentUser *middlewares.CurrentUser) {
 	switch r.Method {
 	case "GET":
 		type task struct {
@@ -42,7 +49,7 @@ func allTask(w http.ResponseWriter, r *http.Request, db *gorm.DB, currentUser *m
 	}
 }
 
-func createTask(w http.ResponseWriter, r *http.Request, db *gorm.DB, currentUser *middlewares.CurrentUser) {
+func createTaskHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, currentUser *middlewares.CurrentUser) {
 	switch r.Method {
 	case "POST":
 		type taskForm struct {
@@ -70,7 +77,7 @@ func createTask(w http.ResponseWriter, r *http.Request, db *gorm.DB, currentUser
 	}
 }
 
-func idBaseActions(w http.ResponseWriter, r *http.Request, db *gorm.DB, currentUser *middlewares.CurrentUser) {
+func idBaseTaskHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, currentUser *middlewares.CurrentUser) {
 	id := strings.TrimPrefix(r.URL.Path, "/api/v1/task/")
 
 	switch r.Method {
@@ -125,6 +132,41 @@ func idBaseActions(w http.ResponseWriter, r *http.Request, db *gorm.DB, currentU
 			w.WriteHeader(http.StatusOK)
 			json.NewEncoder(w).Encode(task)
 		}
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func moveTaskHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, currentUser *middlewares.CurrentUser) {
+	id := strings.TrimPrefix(r.URL.Path, "/api/v1/task/move/")
+
+	switch r.Method {
+	case "PATCH":
+		type taskForm struct {
+			Status string
+		}
+
+		var task taskForm
+
+		err := json.NewDecoder(r.Body).Decode(&task)
+		err_helpers.HandleWebErr(w, err, http.StatusBadRequest)
+
+		if task.Status != ToDoTaskStatus && task.Status != InProgressTaskStatus && task.Status != DoneTaskStatus {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Invalid status"})
+			return
+		}
+
+		result := db.Table("tasks").Where("id = ?", id).Updates(&task)
+
+		err_helpers.HandleWebErr(w, result.Error, http.StatusBadRequest)
+		if result.RowsAffected == 0 {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
