@@ -8,3 +8,10 @@
 2. Run `go get . ` to fetch all libs
 3. Run `go run . migrate` to migrate database
 4. Run `go run . server` to run server. 
+
+
+# Features
+1. User registration
+2. User authentication
+3. Task CRUD endpoints
+4. Task move state endpoint

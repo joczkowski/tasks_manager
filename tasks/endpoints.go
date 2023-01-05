@@ -32,6 +32,7 @@ func allTaskHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, current
 			Title       string
 			Description string
 			UserId      int
+			Status      string
 			CreatedAt   time.Time
 			UpdatedAt   time.Time
 		}
@@ -56,9 +57,10 @@ func createTaskHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, curr
 			Title       string
 			Description string
 			UserId      int
+			Status      string
 		}
 
-		var task taskForm
+		var task taskForm = taskForm{Status: ToDoTaskStatus}
 
 		err := json.NewDecoder(r.Body).Decode(&task)
 		err_helpers.HandleWebErr(w, err, http.StatusBadRequest)
@@ -85,12 +87,25 @@ func idBaseTaskHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, curr
 		type taskForm struct {
 			Title       string
 			Description string
+			Status      string
 		}
 
 		var task taskForm
 
 		err := json.NewDecoder(r.Body).Decode(&task)
 		err_helpers.HandleWebErr(w, err, http.StatusBadRequest)
+
+		if task.Title == "" && task.Description == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "No data to update"})
+			return
+		}
+
+		if task.Status != ToDoTaskStatus && task.Status != InProgressTaskStatus && task.Status != DoneTaskStatus {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Invalid status"})
+			return
+		}
 
 		result := db.Table("tasks").Where("id = ?", id).Updates(&task)
 
@@ -117,6 +132,7 @@ func idBaseTaskHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, curr
 			Id          int
 			Title       string
 			Description string
+			Status      string
 			CreatedAt   time.Time
 			UpdatedAt   time.Time
 		}

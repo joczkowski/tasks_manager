@@ -15,7 +15,7 @@ type Task struct {
 	Title       string
 	Description string
 	UserId      int
+	Status      string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
-	Status      string
 }
